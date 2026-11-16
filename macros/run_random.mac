@@ -1,0 +1,15 @@
+# ============================================================
+#  随机枪：起点在阵列全截面上均匀随机
+#      x ∈ ±阵列半宽(415 um)，y ∈ ±柱子半高(500 mm)，z 固定，方向 +Z
+#      ./build/pixel macros/run_random.mac   ->  pixel_random.root
+# ============================================================
+
+/run/initialize
+
+/output/fileName  pixel_random.root
+/gun/randomXY     true
+/gun/energy       100 MeV
+
+/random/setSeeds 24680 13579
+
+/run/beamOn 5000

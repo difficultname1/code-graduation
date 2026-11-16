@@ -1,0 +1,17 @@
+# ============================================================
+#  固定枪：电子枪固定在阵列截面中心、紧贴入射面，朝 +Z 打
+#      ./build/pixel macros/run.mac   ->  pixel.root
+#
+#  几何参数在 src/DetectorConstruction.cc 文件开头的常量里
+#  （kSide / kHeight / kN / kMaxStep），这里只放能量、事件数、输出名
+# ============================================================
+
+/run/initialize
+
+/output/fileName  pixel.root
+/gun/randomXY     false
+/gun/energy       100 MeV
+
+/random/setSeeds 12345 67890
+
+/run/beamOn 5000
