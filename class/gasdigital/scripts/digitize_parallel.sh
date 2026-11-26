@@ -18,8 +18,8 @@
 set -uo pipefail
 
 PROG=$(basename "$0")
-# 仓库根目录（本脚本在 class.gasdigital/scripts/ 下）
-ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+# 仓库根目录（本脚本在 class/gasdigital/scripts/ 下）
+ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 
 if [ $# -lt 3 ]; then
   cat <<EOF

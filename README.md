@@ -75,7 +75,7 @@ TTree 桶按顺序串接（实测合并后仍是 `event/I`、`x/D` …）。
 数字化也能并行（按事件号切，靠 `events` 树直接跳）：
 
 ```bash
-./class.gasdigital/scripts/digitize_parallel.sh pixel_height.root digi_height.root 8 --chip-y -40
+./class/gasdigital/scripts/digitize_parallel.sh pixel_height.root digi_height.root 8 --chip-y -40
 ```
 
 每个进程跑 `digitize --part i/N`，种子用 `SEED+i` 错开，最后 `hadd`。`digi` 的
@@ -186,11 +186,12 @@ geant4/                        Geant4 仿真
   macros/                      固定枪 / 随机枪 / 扫高度三个运行宏
   scripts/run_parallel.sh      多进程并行跑 + hadd 合并（分配事件号偏移）
 
-class.gasdigital/              数字化
-  include/GasDigital.hh        数字化核心的接口
-  src/GasDigital.cc            步内切子段 -> 抽电子数 -> 电离簇团 -> 逐电子落点
-  app/digitize.cc              命令行：hits -> digi.root
-  scripts/digitize_parallel.sh 按事件号分段并行数字化 + hadd 合并
+class/                         按类分的模块
+  gasdigital/                  数字化
+    include/GasDigital.hh      数字化核心的接口
+    src/GasDigital.cc          步内切子段 -> 抽电子数 -> 电离簇团 -> 逐电子落点
+    app/digitize.cc            命令行：hits -> digi.root
+    scripts/digitize_parallel.sh  按事件号分段并行数字化 + hadd 合并
 
 picture draw/                  画图
   hits/plot.py                 读 hits，按柱(坐标分 bin)求平均、画图/写 CSV
