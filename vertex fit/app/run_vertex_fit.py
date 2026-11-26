@@ -6,13 +6,14 @@
 要真正出数，把 fit_vertex() 的 TODO 填掉，这里不用改。
 
 用法:
-    python3 "vertex fit/run_vertex_fit.py" digi.root -o vertex_fit.root
+    python3 "vertex fit/app/run_vertex_fit.py" digi.root -o vertex_fit.root
 """
 import argparse
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# 本文件在 <分类>/app/ 下，包（vertex_fit/）在上一级，所以把上级目录加进 sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import ROOT  # noqa: E402
 

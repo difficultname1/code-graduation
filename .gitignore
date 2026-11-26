@@ -81,3 +81,7 @@ docs/
 .parallel/
 # Python 缓存
 __pycache__/
+
+# Python
+__pycache__/
+*.pyc

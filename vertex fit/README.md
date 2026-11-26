@@ -9,13 +9,13 @@
 ```
 vertex_fit/io.py    读 digi、按事件切组、建并写 vertices 树
 vertex_fit/fit.py   fit_vertex() —— 算法在这里，现在直接 return None
-run_vertex_fit.py   命令行入口
+app/run_vertex_fit.py   命令行入口
 ```
 
 跑一遍：
 
 ```bash
-python3 "vertex fit/run_vertex_fit.py" digi.root -o vertex_fit.root
+python3 "vertex fit/app/run_vertex_fit.py" digi.root -o vertex_fit.root
 ```
 
 会写出一棵**结构正确但为空**的 `vertices` 树：

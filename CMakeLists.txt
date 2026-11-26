@@ -13,21 +13,17 @@ endif()
 find_package(Geant4 REQUIRED)
 find_package(ROOT REQUIRED COMPONENTS Core RIO Hist Tree)
 
-# 源码分两个顶层目录：class（按职责分类的代码）与 gasdigital（气体数字化）
-set(G4_DIR  ${PROJECT_SOURCE_DIR}/class/geant4)
-set(DIGI_DIR ${PROJECT_SOURCE_DIR}/gasdigital)
-
 include(${Geant4_USE_FILE})
-include_directories(${G4_DIR}/include ${DIGI_DIR}/include ${ROOT_INCLUDE_DIRS})
+include_directories(${PROJECT_SOURCE_DIR}/geant4/include ${ROOT_INCLUDE_DIRS})
 
 add_executable(pixel
-  ${G4_DIR}/src/main.cc
-  ${G4_DIR}/src/DetectorConstruction.cc
-  ${G4_DIR}/src/PrimaryGeneratorAction.cc
-  ${G4_DIR}/src/RunAction.cc
-  ${G4_DIR}/src/EventAction.cc
-  ${G4_DIR}/src/SteppingAction.cc
-  ${G4_DIR}/src/ActionInitialization.cc
+  geant4/src/main.cc
+  geant4/src/DetectorConstruction.cc
+  geant4/src/PrimaryGeneratorAction.cc
+  geant4/src/RunAction.cc
+  geant4/src/EventAction.cc
+  geant4/src/SteppingAction.cc
+  geant4/src/ActionInitialization.cc
 )
 
 target_link_libraries(pixel PRIVATE ${Geant4_LIBRARIES} ${ROOT_LIBRARIES})
@@ -45,11 +41,11 @@ option(USE_GARFIELD "用 Garfield++ 的 MediumMagboltz 提供气体参数" OFF)
 set(GARFIELD_ROOT "" CACHE PATH "Garfield++ 安装前缀")
 
 add_executable(digitize
-  ${DIGI_DIR}/app/digitize.cc
-  ${DIGI_DIR}/src/GasDigital.cc
+  gasdigital/app/digitize.cc
+  gasdigital/src/GasDigital.cc
 )
 target_include_directories(digitize PRIVATE
-  ${DIGI_DIR}/include
+  ${PROJECT_SOURCE_DIR}/gasdigital/include
   ${ROOT_INCLUDE_DIRS}
 )
 target_link_libraries(digitize PRIVATE ${ROOT_LIBRARIES})

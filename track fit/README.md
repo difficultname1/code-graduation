@@ -9,13 +9,13 @@
 ```
 track_fit/io.py    读 hits、按事件切组、建并写 tracks 树
 track_fit/fit.py   fit_track() —— 算法在这里，现在直接 return None
-run_track_fit.py   命令行入口，串起 "读 -> 拟合 -> 写"
+app/run_track_fit.py   命令行入口，串起 "读 -> 拟合 -> 写"
 ```
 
 跑一遍：
 
 ```bash
-python3 "track fit/run_track_fit.py" pixel.root -o track_fit.root
+python3 "track fit/app/run_track_fit.py" pixel.root -o track_fit.root
 ```
 
 会读完整棵树（打印读了几个事件），写出一个**结构正确但为空**的 `tracks` 树：

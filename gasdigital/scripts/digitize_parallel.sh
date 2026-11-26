@@ -2,8 +2,8 @@
 # -----------------------------------------------------------------------------
 #  并行数字化：把事件号按进程数等分，每个进程只做自己那段，最后 hadd 合并。
 #
-#    ./scripts/digitize_parallel.sh pixel.root digi.root 8
-#    ./scripts/digitize_parallel.sh pixel_height.root digi_height.root 8 --chip-y -40
+#    ./gasdigital/scripts/digitize_parallel.sh pixel.root digi.root 8
+#    ./gasdigital/scripts/digitize_parallel.sh pixel_height.root digi_height.root 8 --chip-y -40
 #
 #  每个进程用 digitize --part i/N 直接跳到自己的事件区间（靠 hits 里附带的
 #  events 树，不扫描前面的数据），种子也各自错开，避免重复的随机数流。

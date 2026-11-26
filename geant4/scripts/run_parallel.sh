@@ -19,8 +19,8 @@
 set -uo pipefail
 
 PROG=$(basename "$0")
-# 仓库根目录（本脚本在 class/geant4/scripts/ 下），默认路径都相对它，从哪运行都行
-ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
+# 仓库根目录（本脚本在 geant4/scripts/ 下），默认路径都相对它，从哪运行都行
+ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 
 if [ $# -lt 4 ]; then
   cat <<EOF

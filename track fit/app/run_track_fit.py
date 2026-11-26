@@ -6,13 +6,14 @@
 要真正出数，把 fit_track() 的 TODO 填掉即可，这里不用改。
 
 用法:
-    python3 "track fit/run_track_fit.py" pixel.root -o track_fit.root
+    python3 "track fit/app/run_track_fit.py" pixel.root -o track_fit.root
 """
 import argparse
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# 本文件在 <分类>/app/ 下，包（track_fit/）在上一级，所以把上级目录加进 sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import ROOT  # noqa: E402  （PyROOT 要在 sys.path 之后导入）
 
