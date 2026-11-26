@@ -13,10 +13,9 @@ endif()
 find_package(Geant4 REQUIRED)
 find_package(ROOT REQUIRED COMPONENTS Core RIO Hist Tree)
 
-# 源码按职责分类：geant4（仿真）、class/gasdigital（数字化）、
-# picture draw（画图）、track fit / vertex fit（分析骨架）
-set(G4_DIR  ${PROJECT_SOURCE_DIR}/geant4)
-set(DIGI_DIR ${PROJECT_SOURCE_DIR}/class/gasdigital)
+# 源码分两个顶层目录：class（按职责分类的代码）与 gasdigital（气体数字化）
+set(G4_DIR  ${PROJECT_SOURCE_DIR}/class/geant4)
+set(DIGI_DIR ${PROJECT_SOURCE_DIR}/gasdigital)
 
 include(${Geant4_USE_FILE})
 include_directories(${G4_DIR}/include ${DIGI_DIR}/include ${ROOT_INCLUDE_DIRS})

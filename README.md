@@ -26,11 +26,11 @@
 > 电子沿柱壁飞时“落在哪根”由数值判定决定（实测两边的记录数约各一半）。
 > 想让信号稳定落在正中一根柱子上，把枪的 x 改成 `0.5 * kSide`（偏 41.5 µm）。
 
-**要改参数，只改 `geant4/src/DetectorConstruction.cc` 文件开头的常量**
+**要改参数，只改 `class/geant4/src/DetectorConstruction.cc` 文件开头的常量**
 （`kSide` / `kHeight` / `kN` / `kMaxStep`），宏文件里不用写任何几何命令。
 电子能量在宏里用 `/gun/energy` 改。
 
-头文件（`geant4/include/`）里只有类的声明，没有参数。别的类需要几何量时向
+头文件（`class/geant4/include/`）里只有类的声明，没有参数。别的类需要几何量时向
 `DetectorConstruction` 对象要，比如 `detector->GetGunPos()`。
 
 ## 编译 / 运行
@@ -39,16 +39,16 @@
 cmake -S . -B build -DCMAKE_PREFIX_PATH=/opt/hep/miniforge/envs/hep
 cmake --build build -j8
 
-./build/pixel geant4/macros/run.mac          # 固定枪 -> pixel.root
-python3 "picture draw/hits/plot.py" pixel.root   # -> edep_map*.png / y_map.png / columns_mean.csv
+./build/pixel class/geant4/macros/run.mac          # 固定枪 -> pixel.root
+python3 "class/picture draw/hits/plot.py" pixel.root   # -> edep_map*.png / y_map.png / columns_mean.csv
 
-./build/pixel geant4/macros/run_random.mac   # 随机枪 -> pixel_random.root
-python3 "picture draw/hits/plot.py" pixel_random.root   # -> random_*.png / random_columns_mean.csv
+./build/pixel class/geant4/macros/run_random.mac   # 随机枪 -> pixel_random.root
+python3 "class/picture draw/hits/plot.py" pixel_random.root   # -> random_*.png / random_columns_mean.csv
 ```
 
 两个宏互不干扰，各写各的文件；`plot.py` 的输出前缀从 root 文件名自动推出
 （`pixel.root` -> 无前缀，`pixel_random.root` -> `random_`），也可以手动指定：
-`python3 "picture draw/hits/plot.py" a.root myprefix_`。
+`python3 "class/picture draw/hits/plot.py" a.root myprefix_`。
 
 宏里可用的命令（都在 `/run/initialize` **之后**）：
 
@@ -68,14 +68,14 @@ python3 "picture draw/hits/plot.py" pixel_random.root   # -> random_*.png / rand
 TTree 桶按顺序串接（实测合并后仍是 `event/I`、`x/D` …）。
 
 ```bash
-./geant4/scripts/run_parallel.sh geant4/macros/run_height.mac 20000 15 pixel_height.root
+./class/geant4/scripts/run_parallel.sh class/geant4/macros/run_height.mac 20000 15 pixel_height.root
 ./build/digitize pixel_height.root -o digi_height.root --chip-y -40
 ```
 
 数字化也能并行（按事件号切，靠 `events` 树直接跳）：
 
 ```bash
-./class/gasdigital/scripts/digitize_parallel.sh pixel_height.root digi_height.root 8 --chip-y -40
+./gasdigital/scripts/digitize_parallel.sh pixel_height.root digi_height.root 8 --chip-y -40
 ```
 
 每个进程跑 `digitize --part i/N`，种子用 `SEED+i` 错开，最后 `hadd`。`digi` 的
@@ -103,9 +103,9 @@ y ∈ ±40 mm（柱子全长）。
 固定枪的电荷几乎都产生在同一个高度上（见「容易踩的点」），要验证漂移扩散随高度的变化，用第三个宏：
 
 ```bash
-./build/pixel geant4/macros/run_height.mac      # 笔形束扫高度 -> pixel_height.root（默认 20k 事件）
+./build/pixel class/geant4/macros/run_height.mac      # 笔形束扫高度 -> pixel_height.root（默认 20k 事件）
 ./build/digitize pixel_height.root -o digi_height.root --chip-y -40
-python3 "picture draw/digi/plot_digi.py" -i digi_height.root -o chip_heatmap_height.png --chip-y -40
+python3 "class/picture draw/digi/plot_digi.py" -i digi_height.root -o chip_heatmap_height.png --chip-y -40
 ```
 
 ## 输出 `pixel.root`
@@ -158,7 +158,7 @@ bin 宽 `PITCH`、范围 ±`HALF`（`HALF = PITCH * NCOL / 2`），图上的横�
 `DetectorConstruction.cc` 里的 `kSide` / `kN` 对应，可用第 3、4 个参数覆盖：
 
 ```
-python3 "picture draw/hits/plot.py" pixel.root "" 0.083 100
+python3 "class/picture draw/hits/plot.py" pixel.root "" 0.083 100
 ```
 
 按柱子求平均后写出 `columns_mean.csv`（`x_mm` / `z_mm` 是 bin 中心坐标，
@@ -170,47 +170,48 @@ x_mm,z_mm,nStep,edep_sum_MeV,edep_mean_MeV,y_mean_mm
 
 ## 代码结构
 
-源码按职责分成五个目录，每个大类下面再分子文件夹，代码都放在子文件夹里：
+顶层只有两个目录：`class/` 放按职责分类的代码，`gasdigital/` 放气体数字化模块。
+每个目录下面再分子文件夹，代码都放在子文件夹里。
 
 ```
-geant4/                        Geant4 仿真
-  src/main.cc                  物理列表 + 执行宏
-  src/                         一个类一个文件
-    DetectorConstruction       几何（两级 G4PVReplica 搭 10000 根柱子）
-    PrimaryGeneratorAction     电子源
-    RunAction                  pixel.root 和 hits / events 树
-    EventAction                只记当前事件号，把每步原样转给 RunAction
-    SteppingAction             逐步判断"在不在柱子里"，交出自己的坐标、edep 和时间
-    ActionInitialization       把上面几个挂到 Geant4
-  include/                     对应的头文件
-  macros/                      固定枪 / 随机枪 / 扫高度三个运行宏
-  scripts/run_parallel.sh      多进程并行跑 + hadd 合并（分配事件号偏移）
+class/                         按职责分类的代码
+  geant4/                      Geant4 仿真
+    src/main.cc                物理列表 + 执行宏
+    src/                       一个类一个文件
+      DetectorConstruction     几何（两级 G4PVReplica 搭 10000 根柱子）
+      PrimaryGeneratorAction   电子源
+      RunAction                pixel.root 和 hits / events 树
+      EventAction              只记当前事件号，把每步原样转给 RunAction
+      SteppingAction           逐步判断"在不在柱子里"，交出坐标、edep 和时间
+      ActionInitialization     把上面几个挂到 Geant4
+    include/                   对应的头文件
+    macros/                    固定枪 / 随机枪 / 扫高度三个运行宏
+    scripts/run_parallel.sh    多进程并行跑 + hadd 合并（分配事件号偏移）
 
-class/                         按类分的模块
-  gasdigital/                  数字化
-    include/GasDigital.hh      数字化核心的接口
-    src/GasDigital.cc          步内切子段 -> 抽电子数 -> 电离簇团 -> 逐电子落点
-    app/digitize.cc            命令行：hits -> digi.root
-    scripts/digitize_parallel.sh  按事件号分段并行数字化 + hadd 合并
+  picture draw/                画图
+    hits/plot.py               读 hits，按柱(坐标分 bin)求平均、画图/写 CSV
+    digi/plot_digi.py          读 digi，画芯片热力图与漂移扩散
+    ppt/make_ppt_figs.py       做 PPT 用的两张示意图
 
-picture draw/                  画图
-  hits/plot.py                 读 hits，按柱(坐标分 bin)求平均、画图/写 CSV
-  digi/plot_digi.py            读 digi，画芯片热力图与漂移扩散
-  ppt/make_ppt_figs.py         做 PPT 用的两张示意图
+  track fit/                   径迹拟合（骨架）
+    track_fit/io.py            读 hits、写 tracks 树
+    track_fit/fit.py           拟合算法（待填，现在返回 None）
+    run_track_fit.py           命令行入口，读写已经能跑通
 
-track fit/                     径迹拟合（骨架）
-  track_fit/io.py              读 hits、写 tracks 树
-  track_fit/fit.py             拟合算法（待填，现在返回 None）
-  run_track_fit.py             命令行入口，读写已经能跑通
+  vertex fit/                  入射位置重建（骨架）
+    vertex_fit/io.py           读 digi、写 vertices 树
+    vertex_fit/fit.py          重建算法（待填）
+    run_vertex_fit.py          命令行入口
 
-vertex fit/                    入射位置重建（骨架）
-  vertex_fit/io.py             读 digi、写 vertices 树
-  vertex_fit/fit.py            重建算法（待填）
-  run_vertex_fit.py            命令行入口
+gasdigital/                    气体数字化
+  include/GasDigital.hh        数字化核心的接口
+  src/GasDigital.cc            步内切子段 -> 抽电子数 -> 电离簇团 -> 逐电子落点
+  app/digitize.cc              命令行：hits -> digi.root
+  scripts/digitize_parallel.sh 按事件号分段并行数字化 + hadd 合并
 ```
 
-`track fit/` 和 `vertex fit/` 目前只有骨架：读取与输出都是通的，跑一遍会得到
-结构正确的空树（`tracks` / `vertices`），算法部分留在 `fit.py` 的 TODO 里。
+`class/track fit/` 和 `class/vertex fit/` 目前只有骨架：读取与输出都是通的，跑一遍会
+得到结构正确的空树（`tracks` / `vertices`），算法部分留在 `fit.py` 的 TODO 里。
 
 ## 数字化：hits → digi.root
 
@@ -312,10 +313,10 @@ cmake --build build -j8
 ### 看一眼芯片上的落点分布
 
 ```bash
-python3 "picture draw/digi/plot_digi.py"                     # -> chip_heatmap.png（左：整块芯片，右：束斑缩放）
-python3 "picture draw/digi/plot_digi.py" --weight -o ne.png  # 按电子数 ne 加权（每电子一条时 ne 恒为 1，
-                                                            # 这条只在 --per-cluster 模式下有意义）
-python3 "picture draw/digi/plot_digi.py" --zoom-half 0.3     # 缩放窗口改成 ±0.3 mm
+python3 "class/picture draw/digi/plot_digi.py"                     # -> chip_heatmap.png（左：整块芯片，右：束斑缩放）
+python3 "class/picture draw/digi/plot_digi.py" --weight -o ne.png  # 按电子数 ne 加权（每电子一条时 ne 恒为 1，
+                                                                  # 这条只在 --per-cluster 模式下有意义）
+python3 "class/picture draw/digi/plot_digi.py" --zoom-half 0.3     # 缩放窗口改成 ±0.3 mm
 ```
 
 一个柱截面就是一个像素（83 µm），所以热力图不做任何插值，直接就是像素图；
@@ -338,7 +339,7 @@ $\langle x-x_{\text{event}}\rangle \pm 1\sigma$（点是平均落点，误差棒
   只散到几微米（$\theta_0L/\sqrt3\approx 3$ µm），2.8% 的电子跑出 mm 级尾巴
   全是 δ 射线，而 δ 射线同时带走 x —— 按高度分 bin 会测到假的"扩散"。
   要看高度依赖用 `run_height.mac`（x 固定、y 均匀）。
-- **步长限制必须配 `G4StepLimiterPhysics`**（`geant4/src/main.cc` 已注册）。
+- **步长限制必须配 `G4StepLimiterPhysics`**（`class/geant4/src/main.cc` 已注册）。
   否则电子在这 8.3 mm 的空气里几步就穿出去了，柱子内只能落一两个点，Y 值就没意义了。
   现在 10 µm，每根 83 µm 的柱子约 8 步，穿过整个阵列约 900 步。
 - **一步不是"一个点"**：步的 edep 沿整段路径连续释放，不是堆在起点。
