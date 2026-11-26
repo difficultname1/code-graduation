@@ -5,6 +5,7 @@
 
 #include "G4UserEventAction.hh"
 #include "G4Types.hh"
+#include "G4ThreeVector.hh"
 
 class G4Event;
 class RunAction;
@@ -16,9 +17,12 @@ class EventAction : public G4UserEventAction
 
     void BeginOfEventAction(const G4Event* event) override;
 
-    // 由 SteppingAction 调用：这一步的起点在 (x, y, z)、沉积了 edep、
-    // 到达时间 t
-    void AddHit(G4double x, G4double y, G4double z, G4double edep, G4double t);
+    // 由 SteppingAction 调用：这一步从 p0 走到 p1（Geant4 单位），
+    // 沉积了 edep；fracInside 是这一段里真正落在气体柱里的比例（0..1）。
+    // t0 / t1 是两端的全局时间。
+    void AddHit(const G4ThreeVector& p0, const G4ThreeVector& p1,
+                G4double fracInside, G4double edep,
+                G4double t0, G4double t1);
 
   private:
     RunAction* fRun = nullptr;

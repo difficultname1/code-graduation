@@ -77,3 +77,7 @@ Testing/
 docs/
 # 汇报用 PPT
 *.pptx
+# run_parallel.sh 的中间目录
+.parallel/
+# Python 缓存
+__pycache__/

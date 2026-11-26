@@ -1,6 +1,7 @@
 // 电子源：每个事件一个电子，沿 +Z 飞。
 //   默认：从固定的枪位（阵列截面中心、紧贴入射面）发射
 //   /gun/randomXY true：起点在阵列截面上均匀随机（x ∈ ±半宽，y ∈ ±半高）
+//   /gun/randomY  true：x 固定在枪位，y 沿整个柱高均匀（扫漂移高度）
 #ifndef PrimaryGeneratorAction_h
 #define PrimaryGeneratorAction_h 1
 
@@ -25,6 +26,7 @@ class PrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction
     const DetectorConstruction* fDetector = nullptr;
     G4GenericMessenger* fMessenger = nullptr;
     G4bool fRandomXY = false;      // true = 起点在阵列截面上随机
+    G4bool fRandomY  = false;      // true = x 固定、y 随机（扫高度）
 };
 
 #endif

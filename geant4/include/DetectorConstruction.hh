@@ -22,6 +22,14 @@ class DetectorConstruction : public G4VUserDetectorConstruction
     G4ThreeVector    GetGunPos()     const { return fGunPos; }      // 电子枪位置
     G4double         GetHalfXZ()     const { return fHalfXZ; }      // 阵列半宽（X、Z）
     G4double         GetHalfHeight() const { return fHalfHeight; }  // 柱子半高（Y）
+    G4double         GetChipY()      const { return fChipY; }       // 芯片平面 y（柱阵底面）
+
+    // 一条直线段 p0->p1 落在柱阵盒子内部的比例（0..1）。
+    // 步的终点还在柱子里时就是 1；最后一步飞出阵列（进真空）时小于 1，
+    // 用来把这一步的沉积能量只摊到真正在气体里的那一段上。
+    // 前提：p0 在柱阵里面（调用方已按"步起点在柱子里"筛过）。
+    G4double FractionInsideArray(const G4ThreeVector& p0,
+                                 const G4ThreeVector& p1) const;
 
   private:
     G4LogicalVolume* fColumn = nullptr;
@@ -29,6 +37,7 @@ class DetectorConstruction : public G4VUserDetectorConstruction
     G4ThreeVector fGunPos;
     G4double fHalfXZ = 0.0;
     G4double fHalfHeight = 0.0;
+    G4double fChipY = 0.0;
 };
 
 #endif
