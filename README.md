@@ -70,7 +70,7 @@ cmake -S . -B build -DCMAKE_PREFIX_PATH=/opt/hep/miniforge/envs/hep
 cmake --build build -j8
 
 ./build/pixel geant4/macros/run.mac            # 固定枪 -> pixel.root
-python3 "picture draw/app/plot.py" pixel.root      # -> edep_map*.png / y_map.png / columns_mean.csv
+python3 "picture draw/app/plot.py" pixel.root      # -> edep_map*.png / y_map.png / columns_mean.root
 
 ./build/pixel geant4/macros/run_random.mac     # 随机枪 -> pixel_random.root
 python3 "picture draw/app/plot.py" pixel_random.root
@@ -227,15 +227,18 @@ bin 宽 `PITCH`、范围 ±`HALF`（`HALF = PITCH * NCOL / 2`），图上的横�
 `DetectorConstruction.cc` 里的 `kSide` / `kN` 对应，可用第 3、4 个参数覆盖：
 
 ```
-python3 "picture draw/app/plot.py" pixel.root "" 0.083 100
+python3 "picture draw/app/plot.py" pixel.root "" 0.83 100
 ```
 
-按柱子求平均后写出 `columns_mean.csv`（`x_mm` / `z_mm` 是 bin 中心坐标，
-`y_mean_mm` 是柱内所有步的 Y 平均值）：
+按柱子求平均后写出 `columns_mean.root`，里面一棵 `columns` 树，每个被打到的
+柱子一行：
 
-```
-x_mm,z_mm,nStep,edep_sum_MeV,edep_mean_MeV,y_mean_mm
-```
+| 分支 | 类型 | 含义 |
+| --- | --- | --- |
+| `x_mm`, `z_mm` | `Double_t` | bin 中心坐标 [mm] |
+| `nStep` | `Int_t` | 这个柱子里的沉积步数 |
+| `edep_sum_MeV`, `edep_mean_MeV` | `Double_t` | 总沉积 / 每事件平均沉积 [MeV] |
+| `y_mean_mm` | `Double_t` | 柱内所有步的 Y 平均值 [mm] |
 
 ## 代码结构
 
@@ -260,7 +263,7 @@ vertex fit/                    入射位置重建：digi -> vertices
   app/run_vertex_fit.py        命令行入口
   vertex_fit/                  包：io.py 读写、fit.py 拟合
 picture draw/                  画图
-  app/plot.py                  读 hits，按柱求平均、画图、写 CSV
+  app/plot.py                  读 hits，按柱求平均、画图、写 columns_mean.root
   app/plot_digi.py             读 digi，画芯片热力图
 docs/                          数字化流程图
 ```

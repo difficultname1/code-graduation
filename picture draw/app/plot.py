@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""读 pixel.root / pixel_random.root 的 hits 树，按柱子归并求平均，画图并写 CSV。
+"""读 pixel.root / pixel_random.root 的 hits 树，按柱子归并求平均，画图并写 ROOT。
 
     python3 plot.py [root 文件] [输出前缀]
 
-pixel.root        -> edep_map.png / edep_map_log.png / y_map.png / columns_mean.csv
+pixel.root        -> edep_map.png / edep_map_log.png / y_map.png / columns_mean.root
 pixel_random.root -> random_ 开头的同一套文件（前缀自动从文件名推出来）
+
+数据输出统一是 ROOT：columns_mean.root 里一棵 columns 树，每个被打到的柱子一行。
+图片只是给人看的，不算数据产物。
 
 树 hits：柱子里每个沉积了能量的步一条，
 分支为 event(整数) / x,y,z(该步起点坐标, mm) / edep(该步沉积能量, MeV)。
@@ -13,6 +16,7 @@ pixel_random.root -> random_ 开头的同一套文件（前缀自动从文件名
 范围 ±HALF，横纵轴就是 mm，全程不出现整数索引。
 PITCH / NCOL 要和 DetectorConstruction.cc 里的 kSide / kN 一致。
 """
+import array
 import os
 import sys
 import ROOT
@@ -90,10 +94,26 @@ for bx in range(1, n + 1):
                      eSum, eSum / max(1, nEvents),
                      hYSum.GetBinContent(bx, bz) / cnt))
 
-with open(prefix + "columns_mean.csv", "w") as out:
-    out.write("x_mm,z_mm,nStep,edep_sum_MeV,edep_mean_MeV,y_mean_mm\n")
-    for r in rows:
-        out.write("%.5f,%.5f,%d,%.6e,%.6e,%.4f\n" % r)
+fout = ROOT.TFile(prefix + "columns_mean.root", "RECREATE")
+tcols = ROOT.TTree("columns", "per-column means: one row per hit column")
+bx = array.array("d", [0.0])
+bz = array.array("d", [0.0])
+bn = array.array("i", [0])
+be = array.array("d", [0.0])
+bm = array.array("d", [0.0])
+by = array.array("d", [0.0])
+tcols.Branch("x_mm", bx, "x_mm/D")
+tcols.Branch("z_mm", bz, "z_mm/D")
+tcols.Branch("nStep", bn, "nStep/I")
+tcols.Branch("edep_sum_MeV", be, "edep_sum_MeV/D")
+tcols.Branch("edep_mean_MeV", bm, "edep_mean_MeV/D")
+tcols.Branch("y_mean_mm", by, "y_mean_mm/D")
+for r in rows:
+    bx[0], bz[0], bn[0], be[0], bm[0], by[0] = r
+    tcols.Fill()
+tcols.Write()
+fout.Close()
+ROOT.gROOT.cd()          # 回到内存目录，后面的画布/直方图不依赖已关闭的文件
 
 ROOT.gStyle.SetOptStat(0)
 ROOT.gStyle.SetTitleSize(0.045, "xyz")
@@ -128,5 +148,5 @@ c2 = newCanvas("c2")
 hY.Draw("COLZ")
 c2.SaveAs(prefix + "y_map.png")
 
-print("已生成 %sedep_map.png / %sedep_map_log.png / %sy_map.png / %scolumns_mean.csv"
+print("已生成 %sedep_map.png / %sedep_map_log.png / %sy_map.png / %scolumns_mean.root"
       % (prefix, prefix, prefix, prefix))
