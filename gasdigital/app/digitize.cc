@@ -10,7 +10,7 @@
 //                   -> 逐个电子漂移到芯片（y = --chip-y），横向扩散 sigma 随
 //                      漂移高度增长：sigma_d = D*sqrt(L)，D = --diffusion
 //                   -> 再叠加读出分辨率，得到芯片落点
-//    ④ 输出文件    默认每个电子一条写进 digi.root 的 digi 树；
+//    ④ 输出文件    默认每个电子一条写进 digi.root 的 electrons 树；
 //                   --per-cluster 则每个簇团一条（ne = 簇内电子数，位置 = 簇心）
 //
 //  为什么要在步内插值：Geant4 的一步不是"在起点瞬间沉积 edep"，而是粒子
@@ -59,9 +59,9 @@ struct Options {
   std::string output   = "digi.root";
   double w_eV          = 33.97;    // gauss 后端的 W（空气）
   double fano          = 0.2;      // 电离涨落 Var(N) = F·N；<0 关掉
-  double sigma_mm      = 0.16;     // 160 um 读出分辨率
-  double diffusion     = 0.085;    // 85 um/sqrt(cm) 漂移横向扩散
-  double chip_y_mm     = -40.0;    // 芯片平面 y = 柱阵底面（80 mm 高，中心在原点）
+  double sigma_mm      = 0.08;     // 80 um：电离倍增小孔的定位宽度（芯片本身无额外 sigma）
+  double diffusion     = 85.0;     // 85 um/sqrt(cm) 漂移横向扩散（选项单位，内部再换成 mm）
+  double chip_y_mm     = -20.0;    // 芯片平面 y = 柱阵底面（40 mm 高，中心在原点）
   double substep_mm    = 0.002;    // 一步内部插值的子段长度（2 um；<=0 关掉）
   double cluster_mean  = 2.5;      // 一个电离簇团平均几个电子
   double cluster_sigma = 5e-5;     // 簇内产生点的空间涨落 [mm] = 50 nm
@@ -90,11 +90,11 @@ void Usage(const char* prog)
     "      --backend <b>    gauss | garfield（默认 garfield；没编进来会自动退回 gauss）\n"
     "      --w <eV>         gauss 后端的 W 值（默认 33.97，干燥空气）\n"
     "      --fano <f>       Fano 因子（默认 0.2；<= 0 表示不加涨落）\n"
-    "      --sigma <mm>     芯片位置分辨率（默认 0.16 = 160 um）\n"
+    "      --sigma <mm>     芯片位置分辨率（默认 0.08 = 80 um，来自电离倍增小孔）\n"
     "      --diffusion <d> 漂移横向扩散系数 [um/sqrt(cm)]（默认 85）；\n"
     "                       sigma_d = d * sqrt(漂移距离[cm])，产生得越高扩散越大；\n"
     "                       <= 0 表示不考虑扩散\n"
-    "      --chip-y <mm>    芯片所在平面 y 坐标（默认 -40 = 柱阵底面）\n"
+    "      --chip-y <mm>    芯片所在平面 y 坐标（默认 -20 = 40 mm 柱阵底面）\n"
     "      --substep <mm>   一步内部插值的子段长度（默认 0.002 = 2 um；\n"
     "                       <= 0 表示不插值，每步只有一个点）\n"
     "      --cluster-mean <n>   一个电离簇团平均几个电子（默认 2.5；<= 1 表示一电子一簇）\n"
@@ -189,8 +189,18 @@ int main(int argc, char** argv)
   }
 
   int    ev = 0;
+  int    mcTrackID = 0;
   double hx = 0, hy = 0, hz = 0, edep = 0, ht = 0;
   chain.SetBranchAddress("event", &ev);
+  // 新文件带 mcTrackID（MC 真值，初级 = 1）；旧文件退回 trackID，
+  // 再没有就全部记 0。注意这只是给 class 阶段做完美分类用的真值。
+  if (chain.GetBranch("mcTrackID") != nullptr)
+    chain.SetBranchAddress("mcTrackID", &mcTrackID);
+  else if (chain.GetBranch("trackID") != nullptr)
+    chain.SetBranchAddress("trackID", &mcTrackID);
+  else
+    std::cerr << "[警告] hits 里没有 mcTrackID/trackID 分支（旧文件），"
+                 "electrons 里一律写 0\n";
   chain.SetBranchAddress("x", &hx);
   chain.SetBranchAddress("y", &hy);
   chain.SetBranchAddress("z", &hz);
@@ -331,12 +341,13 @@ int main(int argc, char** argv)
 
   // ---------------- ④ 输出（先建树） ----------------
   TFile fout(opt.output.c_str(), "RECREATE");
-  TTree tree("digi", "芯片上的一个落点");
+  TTree tree("electrons", "芯片上的一个电子落点");
 
-  int    bEvent = 0, bNe = 0, bNstep = 0;
+  int    bEvent = 0, bNe = 0, bNstep = 0, bMcTrackID = 0;
   double bX = 0, bZ = 0, bEdep = 0, bT = 0, bYsrc = 0;
 
   tree.Branch("event", &bEvent, "event/I");   // 事件号（编号 -> 整型）
+  tree.Branch("mcTrackID", &bMcTrackID, "mcTrackID/I");  // MC 真值（初级 = 1）
   tree.Branch("x",     &bX,     "x/D");       // 芯片 x [mm]
   tree.Branch("z",     &bZ,     "z/D");       // 芯片 z [mm]
   tree.Branch("ne",    &bNe,    "ne/I");      // 电子数（计数 -> 整型；每电子一条时为 1）
@@ -348,7 +359,7 @@ int main(int argc, char** argv)
   // ---------------- ② 循环列表：按 event 切组 ----------------
   // 一个沉积步：起点 (x,y,z,t)、终点 (x2,y2,z2,t2)、这一步的 edep。
   // 终点已经按 fin 裁到"还留在气体里"的位置，所以插值只在这段上做。
-  struct Deposit { double x, y, z, t, x2, y2, z2, t2, edep; };
+  struct Deposit { double x, y, z, t, x2, y2, z2, t2, edep; int mcTrackID; };
 
   std::vector<Deposit> buf;      // 当前事件的所有沉积步（含次级粒子）
   int  curEvent = -1;
@@ -373,14 +384,14 @@ int main(int argc, char** argv)
       z2 = hz + f * (hz2 - hz);
       t2 = t0 + f * (ht2 - t0);
     }
-    return Deposit{hx, hy, hz, t0, x2, y2, z2, t2, edep};
+    return Deposit{hx, hy, hz, t0, x2, y2, z2, t2, edep, mcTrackID};
   };
 
   // 写一行：按"读出分辨率 + 该高度的漂移扩散"抽一次落点后落盘
-  auto writeRow = [&](int event, double x, double y, double z, double t,
+  auto writeRow = [&](int event, int tid, double x, double y, double z, double t,
                       double edepEvent, long ne, int nstep) {
     const auto s = gas.SmearAt(x, y, z);
-    bEvent = event; bX = s[0]; bZ = s[1]; bNe = static_cast<int>(ne);
+    bEvent = event; bMcTrackID = tid; bX = s[0]; bZ = s[1]; bNe = static_cast<int>(ne);
     bEdep = edepEvent; bT = t; bYsrc = y; bNstep = nstep;
     tree.Fill();
     sumX += s[0]; sumX2 += s[0] * s[0];
@@ -393,7 +404,8 @@ int main(int argc, char** argv)
   //   per-electron：每个电子一条，位置就是它自己的产生坐标，各自抽一次读出错
   //   per-cluster ：每个簇团一条，位置取簇内电子产生坐标的平均（= 簇心），
   //                 ne = 簇内电子数
-  auto writeCloud = [&](int event, const std::vector<GasDigital::Electron>& cloud,
+  auto writeCloud = [&](int event, int tid,
+                        const std::vector<GasDigital::Electron>& cloud,
                         double edepEvent, int nstep) {
     if (cloud.empty()) return;
 
@@ -404,7 +416,7 @@ int main(int argc, char** argv)
 
     if (opt.per_electron) {
       for (const auto& e : cloud)
-        writeRow(event, e.x, e.y, e.z, e.t, edepEvent, 1, nstep);
+        writeRow(event, tid, e.x, e.y, e.z, e.t, edepEvent, 1, nstep);
       return;
     }
 
@@ -417,7 +429,7 @@ int main(int argc, char** argv)
         sx += cloud[i].x; sy += cloud[i].y; sz += cloud[i].z; st += cloud[i].t;
         ++k;
       }
-      writeRow(event, sx / k, sy / k, sz / k, st / k, edepEvent, k, nstep);
+      writeRow(event, tid, sx / k, sy / k, sz / k, st / k, edepEvent, k, nstep);
     }
   };
 
@@ -432,7 +444,7 @@ int main(int argc, char** argv)
     nSubSeg += static_cast<long>(segs.size());
     for (const auto& s : segs) {
       const auto cloud = gas.Ionize(s);
-      writeCloud(event, cloud, edepEvent, nstep);
+      writeCloud(event, d.mcTrackID, cloud, edepEvent, nstep);
     }
   };
 
@@ -452,7 +464,7 @@ int main(int argc, char** argv)
       const GasDigital::Segment seg{best->x, best->y, best->z, best->t,
                                     best->x, best->y, best->z, best->t, edepSum};
       const auto cloud = gas.Ionize(seg);
-      writeCloud(event, cloud, edepSum, nstep);
+      writeCloud(event, best->mcTrackID, cloud, edepSum, nstep);
     } else {
       // 每个沉积步都处理：含次级粒子（δ 射线、散射电子），
       // 步内先切子段、再抽电子数——不挑"主粒子那一个点"

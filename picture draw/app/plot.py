@@ -26,8 +26,8 @@ else:
     stem = os.path.basename(path).replace(".root", "")
     prefix = "" if stem == "pixel" else stem.replace("pixel_", "") + "_"
 
-# 几何：默认对应 kSide = 83 um、kN = 100，可用第 3、4 个参数覆盖
-PITCH = float(sys.argv[3]) if len(sys.argv) > 3 else 0.083   # mm，柱子边长 = bin 宽
+# 几何：默认对应 kSide = 830 um、kN = 100，可用第 3、4 个参数覆盖
+PITCH = float(sys.argv[3]) if len(sys.argv) > 3 else 0.83    # mm，柱子边长 = bin 宽
 NCOL = int(sys.argv[4]) if len(sys.argv) > 4 else 100        # 每边柱子数
 HALF = PITCH * NCOL / 2.0                                     # 阵列半宽 [mm]
 

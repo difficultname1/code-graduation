@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""芯片上的热力图：读 digi.root 的 (x, z) 落点，画成像素热力图。
+"""芯片上的热力图：读 digi.root 里 electrons 树的 (x, z) 落点，画成像素热力图。
 
-芯片平面就是 X–Z 平面，一个柱子的截面就是"一个像素"（默认 83 µm 见方），
-所以按 83 µm 分 bin 画出来的就是真实的像素图，不做任何插值。
+芯片平面就是 X–Z 平面，一个柱子的截面就是"一个像素"（默认 830 µm 见方），
+所以按 830 µm 分 bin 画出来的就是真实的像素图，不做任何插值。
 
   python3 plot_digi.py                    # 读 digi.root，写 chip_heatmap.png
   python3 plot_digi.py -i a.root -o b.png
-  python3 plot_digi.py --pitch 0.083 --half 4.15
+  python3 plot_digi.py --pitch 0.83 --half 41.5
 
-左图：整块芯片（±8.3/2 mm）；右图：自动缩放到 99% 落点所在区域。
+左图：整块芯片（±83/2 mm）；右图：自动缩放到 99% 落点所在区域。
 两图都用 log 色阶（单个像素的计数跳好几个量级）。
 另外还会写一张 <输出名>_height.png：左上 dx 随漂移长度 L 的展开（楔形），
 右上 sigma_x(L) 与模型，下排是低/高漂移长度两块芯片分布。
@@ -27,20 +27,20 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("-i", "--input", default="digi.root")
     ap.add_argument("-o", "--output", default="chip_heatmap.png")
-    ap.add_argument("--tree", default="digi")
-    ap.add_argument("--pitch", type=float, default=0.083, help="像素间距 [mm]")
-    ap.add_argument("--half", type=float, default=4.15, help="芯片半宽 [mm]")
+    ap.add_argument("--tree", default="electrons")
+    ap.add_argument("--pitch", type=float, default=0.83, help="像素间距 [mm]")
+    ap.add_argument("--half", type=float, default=41.5, help="芯片半宽 [mm]")
     ap.add_argument("--zoom-half", type=float, default=0.6,
                     help="右图缩放半宽 [mm]（默认 ±0.6 mm）")
     ap.add_argument("--pad", type=float, default=1.0,
                     help="左图在芯片外多画出的边距 [mm]，用来看溢出")
     ap.add_argument("--weight", action="store_true", help="按电子数 ne 加权")
-    ap.add_argument("--chip-y", type=float, default=-40.0,
-                    help="芯片平面 y [mm]（默认 -40 = 80 mm 柱阵的底面）")
+    ap.add_argument("--chip-y", type=float, default=-20.0,
+                    help="芯片平面 y [mm]（默认 -20 = 40 mm 柱阵的底面）")
     ap.add_argument("--diffusion", type=float, default=85.0,
                     help="漂移横向扩散系数 [um/sqrt(cm)]（默认 85，画模型曲线用）")
-    ap.add_argument("--sigma-read", type=float, default=0.16,
-                    help="读出分辨率 sigma [mm]（默认 0.16，画模型曲线用）")
+    ap.add_argument("--sigma-read", type=float, default=0.08,
+                    help="电离倍增小孔定位宽度 sigma [mm]（默认 0.08，画模型曲线用）")
     args = ap.parse_args()
 
     fin = ROOT.TFile.Open(args.input)
@@ -305,7 +305,7 @@ def make_height_figure(xs, zs, dx, ysrc, args):
     hw.SetMaximum(+1.15 * smax)
 
     # 用数据自己拟合 sigma^2 = sigma0^2 + D^2 * L，看拟合出的 D 和输入的 85
-    # 差多少（sigma_0 里会吃掉气体本身的物理展宽，比 160 um 略大）
+    # 差多少（sigma_0 里会吃掉气体本身的物理展宽，比 80 um 略大）
     fitf = ROOT.TF1("f_diff", "sqrt([0]*[0]+[1]*x)", 0.0, dmax)
     fitf.SetParameters(args.sigma_read * 1000.0, 722.5)   # D=85 -> 85^2/10
     fitf.SetLineColor(ROOT.kGreen + 2)
@@ -399,7 +399,7 @@ def make_height_figure(xs, zs, dx, ysrc, args):
     t2.SetTextSize(0.023)
     t2.DrawLatex(0.16, 0.905, "point = mean, bar = point #pm 1#sigma (bin)")
     if ip >= 2:
-        t2.DrawLatex(0.16, 0.855, "red dashed: input #pm#sqrt{160^{2}+(85#sqrt{L})^{2}}  |  "
+        t2.DrawLatex(0.16, 0.855, "red dashed: input #pm#sqrt{80^{2}+(85#sqrt{L})^{2}}  |  "
                                  "green: fit #pm#sqrt{%0.0f^{2}+(%0.0f#sqrt{L})^{2}}"
                      % (a0, math.sqrt(max(bfit, 0.0) * 10)))
 
@@ -466,7 +466,7 @@ def make_height_figure(xs, zs, dx, ysrc, args):
         fitf.Draw("L SAME")
     leg1 = ROOT.TLegend(0.42, 0.14, 0.92, 0.32)
     leg1.AddEntry(gsig, "data (bin #sigma_{x})", "p")
-    leg1.AddEntry(gline_in, "input #sqrt{160^{2}+(85#sqrt{L})^{2}}", "l")
+    leg1.AddEntry(gline_in, "input #sqrt{80^{2}+(85#sqrt{L})^{2}}", "l")
     if ip >= 2:
         leg1.AddEntry(fitf, "fit #sqrt{%0.0f^{2}+(%0.0f#sqrt{L})^{2}}"
                       % (a0, math.sqrt(max(bfit, 0.0) * 10)), "l")

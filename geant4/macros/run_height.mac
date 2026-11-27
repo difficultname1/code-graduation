@@ -1,9 +1,9 @@
 # ============================================================
-#  扫高度：x 固定在阵列正中（枪位），y 在整根柱子（80 mm）内均匀随机，
+#  扫高度：x 固定在枪位，y 在整根柱子（40 mm）内均匀随机，
 #  这样每个事件对应一个不同的漂移高度，专门用来看扩散随高度的变化。
 #      ./build/pixel macros/run_height.mac   ->  pixel_height.root
 #  数字化时要和几何对上：
-#      ./build/digitize pixel_height.root -o digi_height.root --chip-y -40
+#      ./build/digitize pixel_height.root -o digi_height.root --chip-y -20
 # ============================================================
 
 /run/initialize

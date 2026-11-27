@@ -6,6 +6,7 @@
 #include "G4Step.hh"
 #include "G4StepPoint.hh"
 #include "G4ThreeVector.hh"
+#include "G4Track.hh"
 #include "G4TouchableHandle.hh"
 #include "G4VPhysicalVolume.hh"
 #include "G4VTouchable.hh"
@@ -37,5 +38,6 @@ void SteppingAction::UserSteppingAction(const G4Step* step)
   }
 
   fEventAction->AddHit(p0, p1, fracInside, edep,
-                       pre->GetGlobalTime(), post->GetGlobalTime());
+                       pre->GetGlobalTime(), post->GetGlobalTime(),
+                       step->GetTrack()->GetTrackID());
 }

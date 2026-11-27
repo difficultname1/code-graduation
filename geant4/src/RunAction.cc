@@ -33,6 +33,7 @@ void RunAction::BeginOfRunAction(const G4Run*)
   // 不存柱子编号，也不在这边做"摊到起点"的简化——插值留给 digitize。
   fTree = new TTree("hits", "每个有沉积的步一条");
   fTree->Branch("event", &bEvent, "event/I");
+  fTree->Branch("mcTrackID", &bMcTrackID, "mcTrackID/I");   // MC 真值：初级 = 1，次级 > 1
   fTree->Branch("x",     &bX,     "x/D");      // 起点 [mm]
   fTree->Branch("y",     &bY,     "y/D");
   fTree->Branch("z",     &bZ,     "z/D");
@@ -90,7 +91,7 @@ void RunAction::FlushEvent()
 
 void RunAction::FillHit(G4int event, const G4ThreeVector& p0,
                         const G4ThreeVector& p1, G4double fracInside,
-                        G4double edep, G4double t0, G4double t1)
+                        G4double edep, G4double t0, G4double t1, G4int mcTrackID)
 {
   if (!fTree) return;
   // 事件切换：先把上一个事件的行数落进 events 树
@@ -102,6 +103,7 @@ void RunAction::FillHit(G4int event, const G4ThreeVector& p0,
 
   // 事件号 = 本次运行的编号 + 偏移；类型仍是 G4int，行内物理量不动
   bEvent = event + fEventOffset;
+  bMcTrackID = mcTrackID;
   bX  = p0.x() / mm;
   bY  = p0.y() / mm;
   bZ  = p0.z() / mm;

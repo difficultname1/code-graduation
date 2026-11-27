@@ -38,10 +38,10 @@ class GasDigital
 
     // w_eV     : gauss 后端的平均电离能 W [eV]；garfield 后端会用气体表里的值覆盖
     // fano     : Fano 因子，描述电离涨落 Var(N) = F·N；<= 0 表示不加涨落
-    // sigma_mm : 芯片位置分辨率 [mm]，160 um → 0.16
+    // sigma_mm : 电离倍增小孔的定位宽度 [mm]，80 um → 0.08（芯片本身不加 sigma）
     explicit GasDigital(double w_eV     = 33.97,
                         double fano     = 0.2,
-                        double sigma_mm = 0.16,
+                        double sigma_mm = 0.08,
                         unsigned long seed = 12345);
     ~GasDigital();
 
@@ -148,13 +148,13 @@ class GasDigital
 
     double fW     = 33.97;   // eV
     double fFano  = 0.2;
-    double fSigma = 0.16;    // mm：芯片读出分辨率
+    double fSigma = 0.08;    // mm：电离倍增小孔的定位宽度（芯片无额外 sigma）
     double fDiffusion = 0.085; // mm/sqrt(cm) = 85 um/sqrt(cm)：漂移横向扩散
     double fChipY = 0.0;       // mm：芯片所在平面
     double fSubStep = 0.002; // mm：一步内部插值的子段长度（2 um）
     // 电离簇团：空气里原初电离簇的平均大小约 2~3 个电子（Heed 默认分布均值
-    // 同量级）；簇内产生点在气体里热化尺度上是很小的（几十 nm），相对 160 um
-    // 读出分辨率可以忽略——想要看到它的效果就把 sigma 调小、或把这里改大。
+    // 同量级）；簇内产生点在气体里热化尺度上是很小的（几十 nm），相对 80 um
+    // 小孔定位宽度可以忽略——想要看到它的效果就把 sigma 调小、或把这里改大。
     double fClusterMean  = 2.5;      // 电子/簇团
     double fClusterSigma = 5e-5;     // mm = 50 nm
     bool   fWFromGas = false;

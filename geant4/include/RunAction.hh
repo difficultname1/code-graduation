@@ -2,6 +2,8 @@
 //
 //   hits  每个"在柱子里沉积了能量"的步一条，不再做任何按柱汇总
 //              event  事件号（整数，从 0 起）
+//              mcTrackID  Geant4 的 MC 径迹编号（初级 = 1，次级 > 1）；
+//                         这是真值，不是分类结果——分类后的 trackID 由 class 产生
 //              x,y,z  这一步起点的坐标 [mm]
 //              x2,y2,z2  这一步终点的坐标 [mm]（一步内部的真实走向）
 //              edep   这个步在该柱子内沉积的能量 [MeV]
@@ -53,7 +55,7 @@ class RunAction : public G4UserRunAction
     // edep 是沉积能量，t0 / t1 是两端时间，fracInside 是落在气体里的比例
     void FillHit(G4int event, const G4ThreeVector& p0, const G4ThreeVector& p1,
                  G4double fracInside, G4double edep,
-                 G4double t0, G4double t1);
+                 G4double t0, G4double t1, G4int mcTrackID);
 
   private:
     // 把上一个事件的行数落进 events 树（事件切换 / 收尾时调用）
@@ -72,6 +74,7 @@ class RunAction : public G4UserRunAction
 
     // 写树用的缓冲区
     G4int    bEvent = 0;
+    G4int    bMcTrackID = 0;
     G4double bX = 0.0;
     G4double bY = 0.0;
     G4double bZ = 0.0;
@@ -88,6 +91,7 @@ class RunAction : public G4UserRunAction
 
     // 编号必须是整数：谁把它改成 double，这里就编译不过
     static_assert(std::is_integral_v<decltype(bEvent)>, "event 编号必须是整型");
+    static_assert(std::is_integral_v<decltype(bMcTrackID)>, "mcTrackID 必须是整型");
     static_assert(std::is_integral_v<decltype(fEventOffset)>, "事件号偏移也必须是整型");
     static_assert(std::is_integral_v<decltype(bEvtEvent)>, "events 树的事件号必须是整型");
     static_assert(std::is_integral_v<decltype(bEvtN)>, "事件行数是计数，必须是整型");

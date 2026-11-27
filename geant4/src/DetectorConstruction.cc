@@ -14,27 +14,34 @@
 
 // ==================== 几何参数：要改就改这里 ====================
 namespace {
-  const G4double kSide    = 8.3e-5 * m;   // 柱子底面边长（正方形，83 um）
-  const G4double kHeight  = 80.0 * mm;    // 柱子高度 = 漂移长度，沿 Y 轴
+  const G4double kSide    = 0.83 * mm;    // 柱子底面边长（正方形，830 um）
+  const G4double kHeight  = 40.0 * mm;    // 柱子高度 = 漂移长度，沿 Y 轴
   const G4int    kN       = 100;          // 每边柱子数，共 kN*kN = 10000 根
   const G4double kMaxStep = 10.0 * um;    // 柱内带电粒子的最大步长
-  const G4double kWorld   = 80.0 * mm;    // 世界：边长 80 mm 的立方体
+  const G4double kWorld   = 120.0 * mm;   // 世界：边长 120 mm 的真空立方体
+
+  // 电子枪：高度 y = 14 mm，沿 X–Z 平面的对角线入射，45°，
+  // 从左下角 (-halfXZ, -halfXZ) 射到右上角 (+halfXZ, +halfXZ)。
+  // 方向 = (sin45°, 0, cos45°)；枪退到左下角外 1 mm 的真空里。
+  const G4double kGunHeight = 14.0 * mm;
+  const G4double kGunAngle  = 45.0 * deg;
+  const G4double kGunGap    = 1.0 * mm;   // 枪到阵列左下角的距离（在真空里）
 }
 // ================================================================
 //
 // 坐标约定：
-//   柱阵沿 Y 轴放置，高度 80 mm；柱阵中心 = 世界立方体的中心 = 原点。
-//   电荷沿 Y 漂移到柱子的一端，芯片就贴在那个端面上：y = -kHeight/2。
-//   所以电离点离芯片的漂移距离 = y - chipY ∈ [0, 80] mm，
+//   柱阵沿 Y 轴放置，高度 40 mm；柱阵中心 = 世界立方体的中心 = 原点。
+//   电荷沿 Y 漂移到柱子的一端，芯片就贴在那个端面上：y = -kHeight/2 = -20 mm。
+//   所以电离点离芯片的漂移距离 = y - chipY ∈ [0, 40] mm，
 //   扩散 sigma 随这个高度增长（见 digitize 的 --diffusion）。
 
 // World（真空）
-//   └─ Array       100x100 根柱子拼起来的整体
+//   └─ Array       100x100 根柱子拼起来的整体（83 x 40 x 83 mm）
 //        └─ Slice     沿 Z 复制 kN 片          copyNo = iz
 //             └─ Column  沿 X 复制 kN 根柱子    copyNo = ix   ← 柱子本体
 //
 // 用 G4PVReplica 而不是写 10000 次 G4PVPlacement：
-// 复制体自动紧挨着排，导航也快（100 个事件不到 1 秒）。
+// 复制体自动紧挨着排，导航也快。
 G4VPhysicalVolume* DetectorConstruction::Construct()
 {
   const G4double halfXZ = 0.5 * kN * kSide;   // 阵列在 X、Z 方向的半宽
@@ -46,32 +53,35 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
   fHalfHeight = halfH;
   fChipY = -halfH;              // 芯片所在平面（柱阵底面，紧贴柱阵）
 
-  // 电子枪：放在 XOY 平面的中心、紧贴阵列入射面（z = -halfXZ），朝 +Z 打。
-  // 注意：kN = 100 是偶数，x = 0 正好是两根柱子（ix=49 / ix=50）的交界面，
-  // 电子会沿着柱壁飞，结果可能不稳定（详见 README）。
-  fGunPos = G4ThreeVector(0.0, 0.0, -halfXZ);
+  // 电子枪：y = 14 mm，沿对角线方向退到左下角外 kGunGap 处，
+  // 这样射线正好从 (-halfXZ, -halfXZ) 进入阵列、从 (+halfXZ, +halfXZ) 射出。
+  // 两个角都落在像素边界上；45° 斜穿时很快离开边界，不会沿壁飞行。
+  fGunDir = G4ThreeVector(std::sin(kGunAngle), 0.0, std::cos(kGunAngle));
+  fGunPos = G4ThreeVector(-halfXZ, kGunHeight, -halfXZ) - kGunGap * fGunDir;
 
   G4cout << "[几何] 世界: 边长 " << kWorld / mm << " mm 的真空立方体, 中心在原点\n"
          << "[几何] " << kN << " x " << kN << " 根柱子, 底面 " << kSide / um
-         << " um, 高 " << kHeight / mm << " mm, 阵列 " << 2 * halfXZ / um
-         << " um x " << 2 * halfXZ / um << " um, 居中于立方体\n"
+         << " um, 高 " << kHeight / mm << " mm, 阵列 " << 2 * halfXZ / mm
+         << " mm x " << 2 * halfXZ / mm << " mm, 居中于立方体\n"
          << "[几何] 芯片贴在下端面 y = " << fChipY / mm
          << " mm, 漂移长度 0.." << kHeight / mm << " mm\n"
-         << "[几何] 电子枪固定在 (" << fGunPos.x() / um << ", "
-         << fGunPos.y() / um << ", " << fGunPos.z() / um
-         << ") um, 方向 +Z" << G4endl;
+         << "[几何] 电子枪在 (" << fGunPos.x() / mm << ", "
+         << fGunPos.y() / mm << ", " << fGunPos.z() / mm
+         << ") mm, 方向 (" << fGunDir.x() << ", " << fGunDir.y()
+         << ", " << fGunDir.z() << ")（相对 +Z 倾斜 "
+         << kGunAngle / deg << "°）" << G4endl;
 
   auto* nist = G4NistManager::Instance();
   G4Material* air = nist->FindOrBuildMaterial("G4_AIR");
   G4Material* vacuum = nist->FindOrBuildMaterial("G4_Galactic");
 
-  // 世界：边长 80 mm 的真空立方体（柱阵正好落在它的中心，Y 向占满）
+  // 世界：边长 120 mm 的真空立方体（柱阵居中，枪在入射面外）
   auto* worldS = new G4Box("World", 0.5 * kWorld, 0.5 * kWorld, 0.5 * kWorld);
   auto* worldL = new G4LogicalVolume(worldS, vacuum, "World");
   auto* worldP = new G4PVPlacement(nullptr, G4ThreeVector(), worldL, "World",
                                    nullptr, false, 0);
 
-  // 阵列容器：大小正好是 100x100 根柱子拼起来
+  // 阵列容器：大小正好是 1000x1000 根柱子拼起来
   auto* arrayS = new G4Box("Array", halfXZ, halfH, halfXZ);
   auto* arrayL = new G4LogicalVolume(arrayS, air, "Array");
   new G4PVPlacement(nullptr, G4ThreeVector(), arrayL, "Array", worldL, false, 0);

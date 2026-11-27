@@ -10,8 +10,8 @@ import ROOT
 _KEEP = []          # PyROOT 对象留引用，避免被 GC 回收后指针悬空
 
 
-def load_digi(path, tree="digi"):
-    """打开 digi 文件，返回 (TFile, TTree)。"""
+def load_digi(path, tree="electrons"):
+    """打开 digitize 的输出文件，返回 (TFile, TTree)。"""
     f = ROOT.TFile.Open(path)
     if not f or f.IsZombie():
         raise SystemExit(f"打不开 {path}")

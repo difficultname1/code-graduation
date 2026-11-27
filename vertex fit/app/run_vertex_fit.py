@@ -21,10 +21,10 @@ from vertex_fit import fit, io  # noqa: E402
 
 
 def main():
-    ap = argparse.ArgumentParser(description="digi -> 入射位置重建（骨架）")
+    ap = argparse.ArgumentParser(description="electrons -> 入射位置重建（骨架）")
     ap.add_argument("input", help="digi 文件（digitize 的输出）")
     ap.add_argument("-o", "--output", default="vertex_fit.root", help="输出文件")
-    ap.add_argument("--tree", default="digi", help="输入树名（默认 digi）")
+    ap.add_argument("--tree", default="electrons", help="输入树名（默认 electrons）")
     args = ap.parse_args()
 
     _, hits = io.load_digi(args.input, args.tree)

@@ -68,15 +68,24 @@ Testing/
 .cache/
 
 # ---- 本项目补充：仿真输出、生成物、汇报材料 ----
-# ROOT 文件（pixel.root 约 140 MB，超过 GitHub 单文件限制，一律不入库）
+# 实验结果：ROOT 文件（pixel.root 约 140 MB，超过 GitHub 单文件限制）
 *.root
-# plot.py / plot_digi.py 生成的 CSV 与 PNG
+# 实验结果：plot.py / plot_digi.py 生成的 CSV 与图片
 *.csv
 *.png
+*.eps
+*.pdf
 # 流程图（本地留存）
 docs/
-# 汇报用 PPT
+# 汇报用 PPT / 演示文稿（一律不入库）
+*.ppt
 *.pptx
+*.key
+*.odp
+ppt-master/
+make_ppt_figs.py
+# 汇报素材目录（如果放在仓库里）
+ppt_assets/
 # run_parallel.sh 的中间目录
 .parallel/
 # Python 缓存

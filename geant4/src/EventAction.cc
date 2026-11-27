@@ -10,7 +10,7 @@ void EventAction::BeginOfEventAction(const G4Event* event)
 
 void EventAction::AddHit(const G4ThreeVector& p0, const G4ThreeVector& p1,
                          G4double fracInside, G4double edep,
-                         G4double t0, G4double t1)
+                         G4double t0, G4double t1, G4int mcTrackID)
 {
-  fRun->FillHit(fEventID, p0, p1, fracInside, edep, t0, t1);
+  fRun->FillHit(fEventID, p0, p1, fracInside, edep, t0, t1, mcTrackID);
 }

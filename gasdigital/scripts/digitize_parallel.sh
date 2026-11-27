@@ -3,7 +3,7 @@
 #  并行数字化：把事件号按进程数等分，每个进程只做自己那段，最后 hadd 合并。
 #
 #    ./gasdigital/scripts/digitize_parallel.sh pixel.root digi.root 8
-#    ./gasdigital/scripts/digitize_parallel.sh pixel_height.root digi_height.root 8 --chip-y -40
+#    ./gasdigital/scripts/digitize_parallel.sh pixel_height.root digi_height.root 8 --chip-y -20
 #
 #  每个进程用 digitize --part i/N 直接跳到自己的事件区间（靠 hits 里附带的
 #  events 树，不扫描前面的数据），种子也各自错开，避免重复的随机数流。
@@ -26,7 +26,7 @@ if [ $# -lt 3 ]; then
 用法: $PROG <hits文件> <输出digi> <进程数> [digitize 的其余参数...]
 
 例:   $PROG pixel.root digi.root 8
-      $PROG pixel_height.root digi_height.root 8 --chip-y -40 --per-cluster
+      $PROG pixel_height.root digi_height.root 8 --chip-y -20 --per-cluster
 
 环境变量:
   BIN=./build/digitize   可执行文件

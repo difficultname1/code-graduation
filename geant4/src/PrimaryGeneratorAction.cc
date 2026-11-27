@@ -16,7 +16,7 @@ PrimaryGeneratorAction::PrimaryGeneratorAction(const DetectorConstruction* detec
   fGun->SetParticleDefinition(
       G4ParticleTable::GetParticleTable()->FindParticle("e-"));
   fGun->SetParticleEnergy(100.0 * MeV);              // 宏里可用 /gun/energy 改
-  fGun->SetParticleMomentumDirection(G4ThreeVector(0, 0, 1));
+  fGun->SetParticleMomentumDirection(fDetector->GetGunDir());   // 45° 斜入射
 
   fMessenger = new G4GenericMessenger(this, "/gun/", "电子枪");
   fMessenger->DeclareProperty("randomXY", fRandomXY,
@@ -33,7 +33,7 @@ PrimaryGeneratorAction::~PrimaryGeneratorAction()
 
 void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
 {
-  // 默认：固定的枪位（阵列截面中心、紧贴入射面）
+  // 默认：固定的枪位（y = 14 mm、左下角外 1 mm），方向固定为 45° 斜入射
   G4ThreeVector pos = fDetector->GetGunPos();
 
   if (fRandomXY) {
@@ -46,5 +46,6 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
   }
 
   fGun->SetParticlePosition(pos);
+  fGun->SetParticleMomentumDirection(fDetector->GetGunDir());
   fGun->GeneratePrimaryVertex(event);
 }

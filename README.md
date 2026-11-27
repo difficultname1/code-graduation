@@ -1,34 +1,64 @@
-# pixel — 气体像素探测器仿真
+# pixel — 气体像素探测器仿真与径迹/顶点重建
 
-一个电子沿 +Z 穿过 100 × 100 根气体像素柱。只记录**落在像素柱内的能量沉积**：
-每个有沉积的步一条，内容是这一步的**起点和终点**坐标 `(x,y,z)` / `(x2,y2,z2)`、
-这一步沉积的能量，以及整数事件号。不存柱子编号，多次事件的结果用 `plot.py`
-把坐标折回柱号再求平均。
+## 物理目标
 
-一步不是"一个点"：粒子是沿着这一步连续走、一路电离的。存两个端点，数字化时
+重建 **真缪子偶素（true muonium，μ⁺μ⁻ 束缚态）衰变产生的正负电子对**：
+
+- 真缪子偶素沿 +Z 方向前进，随后衰变为 e⁺e⁻；
+- 正负电子穿过 83 × 83 × 40 mm 的气体像素探测器，各留下一条电离径迹；
+- 目标是从芯片上的电子沉积出发，**把两条径迹分开并分别拟合**，
+  再用两条径迹的公共交点重建 **衰变顶点**（衰变发生在探测器外时，就外推求交点）。
+
+最终分析链：
+
+```text
+Geant4 (μ⁺μ⁻ → e⁺e⁻)
+  → hits（气体沉积步）
+  → electrons（芯片电子落点，只有 MC 真值 mcTrackID）
+  → class（分到两个 trackID：e⁺ / e⁻）
+  → track fit（每条径迹一条直线）
+  → vertex fit（两条直线的公共顶点）
+```
+
+## 当前阶段
+
+目前先用 **单个 100 MeV 电子沿 X–Z 对角线 45° 入射** 验证整条流程：
+几何、数字化、命名、单径迹拟合已经打通。下一步把源换成 μ⁺μ⁻ → e⁺e⁻，
+让一个事件里同时出现两条径迹，`class` 分成两个 `trackID`，`vertex fit`
+再求两条直线的交点。
+
+> 单径迹测试的目的是把每一步的数据结构和误差模型定死。最终的顶点分辨率
+> 由两条径迹的夹角、探测器有效长度（40 mm 漂移）和单点分辨率
+> （80 µm 电离倍增小孔 + 漂移扩散）共同决定。
+
+## 仿真约定
+
+`hits` 每个"在像素柱里沉积了能量"的步一条，记录这一步的起点和终点
+`(x,y,z)` / `(x2,y2,z2)`、沉积能量 `edep`、事件号 `event` 与 MC 真值 `mcTrackID`。
+一步不是"一个点"：粒子沿着这一步连续走、一路电离。存两个端点，数字化时
 在两端之间插值（见下文 `--substep`），电荷才不会全堆在 10 µm 的步边界上。
 
-## 几何
+## 探测器几何（当前单径迹测试配置）
 
 | 项 | 值 |
 | --- | --- |
-| 世界 | 边长 **80 mm** 的真空立方体，中心在原点 |
-| 底面 | 边长 83 µm 的正方形 |
-| 柱高 | **80 mm**，沿 Y 轴（底面法向量 = +Y）= 最大漂移长度 |
+| 世界 | 边长 **120 mm** 的真空立方体，中心在原点 |
+| 底面 | 边长 830 µm 的正方形 |
+| 柱高 | **40 mm**，沿 Y 轴（底面法向量 = +Y）= 最大漂移长度 |
 | 数量 | 100 × 100 根，排在 X–Z 平面，彼此紧贴 |
-| 阵列 | 8.3 mm (X) × 80 mm (Y) × 8.3 mm (Z)，居中于立方体 |
-| 芯片 | 贴在柱阵底面 **y = −40 mm**；电离点到芯片的漂移距离 y + 40 mm ∈ [0, 80] mm |
-| 入射面 | 电子沿 +Z 飞来，正对的是 **83 µm (X) × 80 mm (Y)** 那个侧面 |
-| 电子枪 | 固定于 **XOY 平面中心 (0, 0)**、紧贴入射面 (z = −415 µm)，方向 +Z |
+| 阵列 | **83 mm (X) × 40 mm (Y) × 83 mm (Z)**，居中于立方体 |
+| 芯片 | 贴在柱阵底面 **y = −20 mm**；电离点到芯片的漂移距离 y + 20 mm ∈ [0, 40] mm |
+| 入射面（当前测试） | 单个电子从左下角 (−41.5, −41.5) 斜 45° 射到右上角 (+41.5, +41.5) |
+| 电子枪（当前测试） | 固定于 **y = 14 mm**、左下角外 1 mm；方向 (sin45°, 0, cos45°) |
 | 柱子材料 | `G4_AIR`；世界是真空（否则电子在阵列外就散了） |
 
-> `kN = 100` 是偶数，x = 0 恰好是 ix=49 / ix=50 两根柱子的交界面，
-> 电子沿柱壁飞时“落在哪根”由数值判定决定（实测两边的记录数约各一半）。
-> 想让信号稳定落在正中一根柱子上，把枪的 x 改成 `0.5 * kSide`（偏 41.5 µm）。
+> 45° 斜穿时不会沿着柱壁长距离飞行；左下角 (−41.5, −41.5) 是四根柱子的
+> 共点边界，只有进入阵列的第一小段贴着边界，对整条径迹的统计影响可以忽略。
+> 换成 μ⁺μ⁻ → e⁺e⁻ 后，两条径迹会从同一个顶点出发，几何本身不变。
 
 **要改参数，只改 `geant4/src/DetectorConstruction.cc` 文件开头的常量**
-（`kSide` / `kHeight` / `kN` / `kMaxStep`），宏文件里不用写任何几何命令。
-电子能量在宏里用 `/gun/energy` 改。
+（`kSide` / `kHeight` / `kN` / `kMaxStep` / `kGunHeight` / `kGunAngle`），
+宏文件里不用写任何几何命令。电子能量在宏里用 `/gun/energy` 改。
 
 头文件（`geant4/include/`）里只有类的声明，没有参数。别的类需要几何量时向
 `DetectorConstruction` 对象要，比如 `detector->GetGunPos()`。
@@ -45,6 +75,44 @@ python3 "picture draw/app/plot.py" pixel.root      # -> edep_map*.png / y_map.pn
 ./build/pixel geant4/macros/run_random.mac     # 随机枪 -> pixel_random.root
 python3 "picture draw/app/plot.py" pixel_random.root
 ```
+
+### 完整分析链
+
+```bash
+# 当前单径迹测试链；最终把第 1 步换成 μ⁺μ⁻ → e⁺e⁻ 的事件源
+./build/pixel geant4/macros/run.mac                          # 1. Geant4 -> pixel.root
+./build/digitize pixel.root -o digi.root                     # 2. 数字化 -> electrons
+python3 "class/app/run_class.py" digi.root -o points.root    # 3. 分类 -> trackID
+python3 "track fit/app/run_track_fit.py" points.root -o tracks.root   # 4. 直线拟合
+python3 "vertex fit/app/run_vertex_fit.py" digi.root -o vertex.root   # 5. 顶点（目前是骨架）
+```
+
+`points.root` 的 `points` 树是每条径迹的落点（`event / trackID / x / z / ne / ysrc`）；
+`tracks.root` 的 `tracks` 树是每条径迹的直线参数（`A / B`，满足 `x = A*z + B`），
+外加 `sigmaA / sigmaB / covAB / corrAB`（误差传递）、`chi2 / ndf / chi2ndf / pvalue`
+（卡方评估）和实际扣掉的本底 `bkg`。拟合按电子数加权，默认扣掉该径迹的平均
+电荷本底（`--background mean`；每电子一条时自动退回不扣）；单点误差取
+80 µm 小孔宽度与漂移扩散的平方和。
+当前 `class` 假设分类完全正确，直接把 digitize 里的 MC 真值 `mcTrackID` 当作分类结果。
+`trackID` 是 class 之后才出现的量，上游的 `hits` / `electrons` 里没有它。
+
+### 最终目标：两条径迹 + 顶点
+
+单电子测试跑通后，物理事件变成 μ⁺μ⁻ → e⁺e⁻：
+
+| 阶段 | 单电子测试（现在） | μ⁺μ⁻ → e⁺e⁻（目标） |
+| --- | --- | --- |
+| Geant4 | 一个 100 MeV e⁻，45° 入射 | 一个真缪子偶素衰变出 e⁺e⁻ |
+| `electrons` | 一条径迹的电子 | 两条径迹的电子混在一起 |
+| `class` | 用 `mcTrackID` 做完美分类 | 分成 `trackID = 1`（e⁻）/ `2`（e⁺） |
+| `track fit` | 一条直线 `x = A*z + B` | 两条直线，各自的 A / B / 误差 |
+| `vertex fit` | 不用 | 两条直线求交，得到衰变顶点 |
+
+当前 `track fit` 先做芯片平面 X–Z 的投影直线；顶点重建需要两条三维直线，
+下一步补上 y(z)（产生高度 `ysrc` 对 z 的依赖）或者直接拿 3D 点拟合。
+两条三维直线在有限分辨率下不一定严格相交，`vertex fit` 实际求它们的
+最近接近点（或做两条直线的联合最小二乘），这个点就是衰变顶点。
+`vertex fit/` 目前还是骨架，等两条径迹能稳定分开后再填。
 
 两个宏互不干扰，各写各的文件；`plot.py` 的输出前缀从 root 文件名自动推出
 （`pixel.root` -> 无前缀，`pixel_random.root` -> `random_`），也可以手动指定：
@@ -69,16 +137,16 @@ TTree 桶按顺序串接（实测合并后仍是 `event/I`、`x/D` …）。
 
 ```bash
 ./geant4/scripts/run_parallel.sh geant4/macros/run_height.mac 20000 15 pixel_height.root
-./build/digitize pixel_height.root -o digi_height.root --chip-y -40
+./build/digitize pixel_height.root -o digi_height.root --chip-y -20
 ```
 
 数字化也能并行（按事件号切，靠 `events` 树直接跳）：
 
 ```bash
-./gasdigital/scripts/digitize_parallel.sh pixel_height.root digi_height.root 8 --chip-y -40
+./gasdigital/scripts/digitize_parallel.sh pixel_height.root digi_height.root 8 --chip-y -20
 ```
 
-每个进程跑 `digitize --part i/N`，种子用 `SEED+i` 错开，最后 `hadd`。`digi` 的
+每个进程跑 `digitize --part i/N`，种子用 `SEED+i` 错开，最后 `hadd`。`electrons` 的
 `event` 来自 `hits`，本来就是全局唯一的，所以合并后不需要再偏移。
 
 脚本按 worker 编号分配三样东西：独立输出文件 `.parallel/part_00i.root`、
@@ -97,15 +165,15 @@ $x - x_{\text{event}}$，会把两个不同事件的入射 $x$ 混在一起，�
 `run_height.mac` 的 20000 事件串行约 1.7 min，分给 15 个进程后每个约 8 s。
 中间文件总量随事件数线性增长（5000 事件约 200 MB），`KEEP=1` 可保留中间文件。
 
-`/gun/randomXY true` 的随机范围是一切面：x ∈ ±415 µm（阵列全宽）、
-y ∈ ±40 mm（柱子全长）。
+`/gun/randomXY true` 的随机范围是入射面：x ∈ ±41.5 mm（阵列全宽）、
+y ∈ ±20 mm（柱阵半高）。
 
 固定枪的电荷几乎都产生在同一个高度上（见「容易踩的点」），要验证漂移扩散随高度的变化，用第三个宏：
 
 ```bash
 ./build/pixel geant4/macros/run_height.mac   # 笔形束扫高度 -> pixel_height.root（末义 20k 事件）
-./build/digitize pixel_height.root -o digi_height.root --chip-y -40
-python3 "picture draw/app/plot_digi.py" -i digi_height.root -o chip_heatmap_height.png --chip-y -40
+./build/digitize pixel_height.root -o digi_height.root --chip-y -20
+python3 "picture draw/app/plot_digi.py" -i digi_height.root -o chip_heatmap_height.png --chip-y -20
 ```
 
 ## 输出 `pixel.root`
@@ -115,6 +183,7 @@ python3 "picture draw/app/plot_digi.py" -i digi_height.root -o chip_heatmap_heig
 | 分支 | 含义 |
 | --- | --- |
 | `event` | 事件号（整数，0 起） |
+| `mcTrackID` | MC 真值径迹号（整数；初级 = 1，次级 > 1），**不是分类结果** |
 | `x`, `y`, `z` | 这一步**起点**的坐标 [mm] |
 | `x2`, `y2`, `z2` | 这一步**终点**的坐标 [mm] |
 | `edep` | 这一步在该柱子里沉积的能量 [MeV] |
@@ -123,15 +192,15 @@ python3 "picture draw/app/plot_digi.py" -i digi_height.root -o chip_heatmap_heig
 | `fin` | 这一步的直线路径落在柱阵（= 气体）里的比例，0..1。正常步是 1；
 最后飞出阵列那一步小于 1，用它把 edep 只摊到气体里的那一段上 |
 
-柱内步长限制是 10 µm，所以一个事件约 900 行（100 根柱子 × 约 8 步），
-5000 个事件约 450 万行，`pixel.root` 约 200 MB、`pixel_random.root` 约 170 MB。
+柱内步长限制是 10 µm，45° 斜穿阵列的路径约 117 mm，所以一个事件约 1.2 万行，
+5000 个事件约 6000 万行，`pixel.root` 约 2 GB（跑大样本要留意磁盘）。
 （多了两端的坐标/时间分支，比只存起点大一圈。）
 
 **类型约定**：
 
 | 分支 | ROOT 叶子类型 | 分支写法 |
 | --- | --- | --- |
-| `event` | `Int_t` | `"event/I"` |
+| `event`、`mcTrackID` | `Int_t` | `"event/I"`、`"mcTrackID/I"` |
 | `x`、`y`、`z`、`x2`、`y2`、`z2`、`edep`、`t`、`t2`、`fin` | `Double_t` | `"x/D"` … `"fin/D"` |
 
 同一个文件里还有一棵很小的 **`events`** 树，每个有沉积的事件一行：
@@ -172,7 +241,7 @@ x_mm,z_mm,nStep,edep_sum_MeV,edep_mean_MeV,y_mean_mm
 
 ```
 CMakeLists.txt                 两个可执行文件的构建（pixel / digitize）
-geant4/                        Geant4 仿真：电子沿 +Z 穿过 100 × 100 根气体像素柱
+geant4/                        Geant4 仿真：电子沿 45° 对角线穿过 100 × 100 根气体像素柱
   include/                     类声明
   src/                         类实现；main.cc 是入口
   macros/                      run.mac / run_random.mac / run_height.mac
@@ -181,10 +250,12 @@ gasdigital/                    气体数字化：hits -> GasDigital -> digi.root
   include/、src/               GasDigital 类的声明与实现
   app/digitize.cc              命令行入口
   scripts/digitize_parallel.sh 按事件号分段并行数字化 + hadd
-class/                         分类算法（占位，以后往里装分类器）
-track fit/                     径迹拟合：hits -> tracks
+class/                         分类：electrons -> 带 trackID 的 points（当前用真值跳过分类器）
+  app/run_class.py             命令行入口
+  classifier/                  包：io.py 读写、classify.py 分类钩子
+track fit/                     径迹拟合：class 的 points -> tracks
   app/run_track_fit.py         命令行入口
-  track_fit/                   包：io.py 读写、fit.py 拟合
+  track_fit/                   包：io.py 读写、fit.py 加权最小二乘直线
 vertex fit/                    入射位置重建：digi -> vertices
   app/run_vertex_fit.py        命令行入口
   vertex_fit/                  包：io.py 读写、fit.py 拟合
@@ -229,9 +300,9 @@ Fano 修正的高斯（`Var(N) = F·N`，空气实测 F = 0.19）。拿到电子
 # 常用参数
 ./build/digitize pixel.root -o digi.root \
   --mode points     # 默认；--mode latest 回到"每事件一个点"
-  --sigma 0.16      # 芯片读出分辨率 [mm]，默认 160 um
+  --sigma 0.08      # 电离倍增小孔的定位宽度 [mm]，默认 80 um（芯片本身不加 sigma）
   --diffusion 85    # 漂移横向扩散系数 [um/sqrt(cm)]，默认 85；0 = 关掉
-  --chip-y -40      # 芯片平面 y [mm]，默认 -40 = 80 mm 柱阵的底面
+  --chip-y -20      # 芯片平面 y [mm]，默认 -20 = 40 mm 柱阵的底面
   --substep 0.002   # 步内插值的子段长度 [mm]，默认 2 um；0 = 不插值
   --cluster-mean 2.5    # 一个电离簇团平均几个电子（<= 1 表示一电子一簇）
   --cluster-sigma 5e-5  # 簇内电子产生点的空间涨落 [mm]，默认 50 nm
@@ -247,9 +318,9 @@ Fano 修正的高斯（`Var(N) = F·N`，空气实测 F = 0.19）。拿到电子
 $$\sigma_d(L) = D\,\sqrt{L},\qquad D = 85\ \mu\text{m}/\sqrt{\text{cm}}$$
 
 和读出分辨率按平方和合成：$\sigma = \sqrt{\sigma_{\text{read}}^2 + \sigma_d^2}$。
-柱高 80 mm 时 $L$ 从 0 到 80 mm，所以 $\sigma$ 从 160 µm 长到约 289 µm ——
+柱高 40 mm 时 $L$ 从 0 到 40 mm，所以 $\sigma$ 从 80 µm 长到约 190 µm ——
 **同一事件里产生得越高的电荷，落到芯片上越模糊**。纵向扩散沿漂移方向，
-influence 不了芯片上的 $(x,z)$，这里没模拟。
+不影响芯片上的 $(x,z)$，这里没模拟。
 
 **步内插值（`--substep`）**：Geant4 的一步是"从起点走到终点、一路上一直在电离"，
 不是一个点上的瞬时沉积。数字化时把这一步的两端 `(x,y,z,t)` → `(x2,y2,z2,t2)`
@@ -262,14 +333,16 @@ influence 不了芯片上的 $(x,z)$，这里没模拟。
 
 逐点模式里每个子段的 edep 只有约 0.4 eV（一步 2 eV / 5 段），`0.4/33.77 ≈ 0.01` 个电子，
 所以用泊松抽样：绝大多数子段抽到 0（不出电子，跳过），少数抽到 1——总量仍然守恒，
-平均 53.6 个电子/事件。450 万个沉积步 → 约 2110 万个子段 → 约 27 万条记录。
+平均约 760 个电子/事件。一个事件约 1.2 万个沉积步 → 约 6 万个子段 → 约 760 条
+电子记录（20 事件实测：25.6 万步 → 120 万子段 → 1.5 万电子）。
 
-输出 `digi.root`，一棵树 **`digi`**：
+输出 `digi.root`，一棵树 **`electrons`**（芯片上的电子落点，不叫 hits）：
 
 | 分支 | 类型 | 含义 |
 | --- | --- | --- |
 | `event` | `Int_t` | 事件号 |
-| `x`, `z` | `Double_t` | 芯片上的落点 [mm]（已叠加读出分辨率与漂移扩散） |
+| `mcTrackID` | `Int_t` | MC 真值径迹号（初级 = 1），class 阶段用它做完美分类的捷径 |
+| `x`, `z` | `Double_t` | 芯片上的落点 [mm]（已叠加 80 µm 小孔宽度与漂移扩散） |
 | `ne` | `Int_t` | 这一条对应的电子数（计数，整型；每电子一条时为 1） |
 | `edep` | `Double_t` | 所在事件的总沉积 [MeV] |
 | `t` | `Double_t` | 这个电子（或簇团）的产生时间 [ns] |
@@ -303,7 +376,7 @@ python3 "picture draw/app/plot_digi.py" --weight -o ne.png # 按电子数 ne 加
 python3 "picture draw/app/plot_digi.py" --zoom-half 0.3    # 缩放窗口改成 ±0.3 mm
 ```
 
-一个柱截面就是一个像素（83 µm），所以热力图不做任何插值，直接就是像素图；
+一个柱截面就是一个像素（830 µm），所以热力图不做任何插值，直接就是像素图；
 前两幅是 log 色阶，第三幅是"扣掉该事件自身入射 $x$ 之后"的 $x$ 剖面 + 高斯拟合
 （随机枪也能得到有意义的宽度）。
 另外会写一张 `<输出名>_vs_drift.png`（四联）：左上 dx 随漂移长度 $L$ 的楔形展开
@@ -319,13 +392,11 @@ $\langle x-x_{\text{event}}\rangle \pm 1\sigma$（点是平均落点，误差棒
 
 ## 几个容易踩的点
 
-- **固定枪几乎不扫高度**：它只把电子打在一个 y 上，电离点靠多次散射在 y 方向
-  只散到几微米（$\theta_0L/\sqrt3\approx 3$ µm），2.8% 的电子跑出 mm 级尾巴
-  全是 δ 射线，而 δ 射线同时带走 x —— 按高度分 bin 会测到假的"扩散"。
-  要看高度依赖用 `run_height.mac`（x 固定、y 均匀）。
+- **固定枪只在一个高度上**：y = 14 mm，整条径迹的漂移长度都是 34 mm，
+  测不到扩散随高度的变化。要看高度依赖用 `run_height.mac`（x 固定、y 均匀）。
 - **步长限制必须配 `G4StepLimiterPhysics`**（`main.cc` 已注册）。
-  否则电子在这 8.3 mm 的空气里几步就穿出去了，柱子内只能落一两个点，Y 值就没意义了。
-  现在 10 µm，每根 83 µm 的柱子约 8 步，穿过整个阵列约 900 步。
+  否则电子在 83 mm 的空气里几步就穿出去了，柱子内只能落一两个点。
+  现在 10 µm，45° 斜穿阵列的路径约 117 mm，一个事件约 1.2 万步。
 - **一步不是"一个点"**：步的 edep 沿整段路径连续释放，不是堆在起点。
   `hits` 存了两个端点，`digitize --substep` 在中间插值；不插值就会看到
   10 µm 间隔的位置格点（`--substep 2 um` 时变成 2 µm，且段内随机后彻底消失）。
@@ -337,9 +408,10 @@ $\langle x-x_{\text{event}}\rangle \pm 1\sigma$（点是平均落点，误差棒
 - 按事件切片（`digitize --part`）时每个进程的随机数起点不同，结果与串行**不逐位相同**
   （电子数的泊松/Fano 涨落本就随机），但统计等价；要逐位对比就用 `--event 0`，
   它和全量模式跑的完全是同一串随机数。
-- 量级自查：空气 MIP ≈ 0.22 keV/mm，8.3 mm 阵列 → 每事件约 1.8 keV；
-  10 µm 步长 → 每步约 2 eV，每根柱子约 16 eV。
-- 阵列在束流方向只有 8.3 mm，电子基本笔直穿过同一行 100 根柱子，
-  所以每个事件约 900 步、落在同一行的 100 根柱子里；`y` 几乎不变（µm 级抖动）。
+- 量级自查：100 MeV 电子在空气里约 0.25 keV/mm，83 mm 阵列 → 每事件约 20 keV
+  （45° 路径 117 mm 时约 29 keV）；10 µm 步长 → 每步约 2.5 eV，
+  总电子数约 800/事件。
+- 45° 斜穿时 x 和 z 都从 −41.5 mm 变到 +41.5 mm，覆盖 100 根柱子；
+  y 保持不变（方向矢量的 y 分量为 0）。
 - `hits` 一步一行。用 `plot.py` 之类的方式做统计时别在
   Python 里逐条循环，交给 ROOT 的 `TTree::Draw` / `RDataFrame`。
