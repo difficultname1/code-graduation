@@ -14,9 +14,9 @@
 
 // ==================== 几何参数：要改就改这里 ====================
 namespace {
-  const G4double kSide    = 0.83 * mm;    // 柱子底面边长（正方形，830 um）
+  const G4double kSide    = 83.0 * um;    // 柱子底面边长（正方形，83 um）
   const G4double kHeight  = 40.0 * mm;    // 柱子高度 = 漂移长度，沿 Y 轴
-  const G4int    kN       = 100;          // 每边柱子数，共 kN*kN = 10000 根
+  const G4int    kN       = 1000;         // 每边柱子数，共 kN*kN = 1e6 根（83 mm / 83 um）
   const G4double kMaxStep = 10.0 * um;    // 柱内带电粒子的最大步长
   const G4double kWorld   = 120.0 * mm;   // 世界：边长 120 mm 的真空立方体
 
@@ -36,12 +36,12 @@ namespace {
 //   扩散 sigma 随这个高度增长（见 digitize 的 --diffusion）。
 
 // World（真空）
-//   └─ Array       100x100 根柱子拼起来的整体（83 x 40 x 83 mm）
+//   └─ Array       1000x1000 根柱子拼起来的整体（83 x 40 x 83 mm）
 //        └─ Slice     沿 Z 复制 kN 片          copyNo = iz
 //             └─ Column  沿 X 复制 kN 根柱子    copyNo = ix   ← 柱子本体
 //
-// 用 G4PVReplica 而不是写 10000 次 G4PVPlacement：
-// 复制体自动紧挨着排，导航也快。
+// 用 G4PVReplica 而不是写 1000000 次 G4PVPlacement：
+// 复制体自动紧挨着排，导航是 O(1)（一个复制体只占 104 字节）。
 G4VPhysicalVolume* DetectorConstruction::Construct()
 {
   const G4double halfXZ = 0.5 * kN * kSide;   // 阵列在 X、Z 方向的半宽

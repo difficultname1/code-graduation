@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-//  100 x 100 气体像素探测器，一个电子沿 +Z 穿过，结果写到 pixel.root
+//  1000 x 1000 气体像素探测器，一个电子沿 45° 对角线穿过，结果写到 pixel.root
 //
 //  编译: cmake -S . -B build -DCMAKE_PREFIX_PATH=/opt/hep/miniforge/envs/hep
 //        cmake --build build -j8

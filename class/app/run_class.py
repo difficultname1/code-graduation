@@ -5,7 +5,7 @@
 于是用 digitize 记录的 MC 真值 mcTrackID 生成分类后的 trackID。
 上游的 electrons 树里没有 trackID，只有真值 mcTrackID。
 默认一个电子一条（points 里就是带电子的 trackID）；
-加 --pitch 0.83 则按 830 µm 的像素把电子合并成命中，
+加 --pitch 0.083 则按 83 µm 的像素把电子合并成命中，
 这样每个点的 ne 才是该像素收集到的电荷，下游可以按电荷加权。
 
 用法:
@@ -30,7 +30,7 @@ def main():
     ap.add_argument("-o", "--output", default="class_points.root", help="输出文件")
     ap.add_argument("--tree", default="electrons", help="输入树名（默认 electrons）")
     ap.add_argument("--pitch", type=float, default=0.0,
-                    help="像素间距 [mm]；默认 0 = 不合并（逐电子），0.83 = 按像素合并")
+                    help="像素间距 [mm]；默认 0 = 不合并（逐电子），0.083 = 按像素合并")
     args = ap.parse_args()
 
     _, digi = io.load_digi(args.input, args.tree)

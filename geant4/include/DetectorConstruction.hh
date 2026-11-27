@@ -1,4 +1,4 @@
-// 探测器几何：100 x 100 根气体像素柱（间距 830 um），整体 83 x 40 x 83 mm。
+// 探测器几何：1000 x 1000 根气体像素柱（间距 83 um），整体 83 x 40 x 83 mm。
 // 具体尺寸、材料都在 src/DetectorConstruction.cc 里，这里只有接口。
 #ifndef DetectorConstruction_h
 #define DetectorConstruction_h 1

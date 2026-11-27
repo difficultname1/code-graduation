@@ -43,9 +43,9 @@ Geant4 (μ⁺μ⁻ → e⁺e⁻)
 | 项 | 值 |
 | --- | --- |
 | 世界 | 边长 **120 mm** 的真空立方体，中心在原点 |
-| 底面 | 边长 830 µm 的正方形 |
+| 底面 | 边长 83 µm 的正方形 |
 | 柱高 | **40 mm**，沿 Y 轴（底面法向量 = +Y）= 最大漂移长度 |
-| 数量 | 100 × 100 根，排在 X–Z 平面，彼此紧贴 |
+| 数量 | 1000 × 1000 根，排在 X–Z 平面，彼此紧贴 |
 | 阵列 | **83 mm (X) × 40 mm (Y) × 83 mm (Z)**，居中于立方体 |
 | 芯片 | 贴在柱阵底面 **y = −20 mm**；电离点到芯片的漂移距离 y + 20 mm ∈ [0, 40] mm |
 | 入射面（当前测试） | 单个电子从左下角 (−41.5, −41.5) 斜 45° 射到右上角 (+41.5, +41.5) |
@@ -227,7 +227,7 @@ bin 宽 `PITCH`、范围 ±`HALF`（`HALF = PITCH * NCOL / 2`），图上的横�
 `DetectorConstruction.cc` 里的 `kSide` / `kN` 对应，可用第 3、4 个参数覆盖：
 
 ```
-python3 "picture draw/app/plot.py" pixel.root "" 0.83 100
+python3 "picture draw/app/plot.py" pixel.root "" 0.083 1000
 ```
 
 按柱子求平均后写出 `columns_mean.root`，里面一棵 `columns` 树，每个被打到的
@@ -244,7 +244,7 @@ python3 "picture draw/app/plot.py" pixel.root "" 0.83 100
 
 ```
 CMakeLists.txt                 两个可执行文件的构建（pixel / digitize）
-geant4/                        Geant4 仿真：电子沿 45° 对角线穿过 100 × 100 根气体像素柱
+geant4/                        Geant4 仿真：电子沿 45° 对角线穿过 1000 × 1000 根气体像素柱
   include/                     类声明
   src/                         类实现；main.cc 是入口
   macros/                      run.mac / run_random.mac / run_height.mac
@@ -379,7 +379,7 @@ python3 "picture draw/app/plot_digi.py" --weight -o ne.png # 按电子数 ne 加
 python3 "picture draw/app/plot_digi.py" --zoom-half 0.3    # 缩放窗口改成 ±0.3 mm
 ```
 
-一个柱截面就是一个像素（830 µm），所以热力图不做任何插值，直接就是像素图；
+一个柱截面就是一个像素（83 µm），所以热力图不做任何插值，直接就是像素图；
 前两幅是 log 色阶，第三幅是"扣掉该事件自身入射 $x$ 之后"的 $x$ 剖面 + 高斯拟合
 （随机枪也能得到有意义的宽度）。
 另外会写一张 `<输出名>_vs_drift.png`（四联）：左上 dx 随漂移长度 $L$ 的楔形展开
